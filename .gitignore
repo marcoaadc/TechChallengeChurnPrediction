@@ -44,5 +44,3 @@ mlartifacts/
 *.pth
 *.onnx
 
-# Poetry
-poetry.lock
