@@ -1,4 +1,4 @@
-.PHONY: install lint format test run
+.PHONY: install lint format test run docker
 
 install:
 	poetry install
@@ -16,3 +16,7 @@ test:
 
 run:
 	poetry run uvicorn src.api:app --reload --host 0.0.0.0 --port 8000
+
+docker:
+	docker build -t churn-api .
+	@echo "Run with: docker run -p 8000:8000 churn-api"
