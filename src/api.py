@@ -2,10 +2,10 @@
 
 import logging
 import time
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import joblib
-import numpy as np
 import pandas as pd
 import torch
 from fastapi import FastAPI, Request
@@ -18,18 +18,12 @@ logger = logging.getLogger(__name__)
 
 MODELS_DIR = Path(__file__).resolve().parent.parent / "models"
 
-app = FastAPI(
-    title="Churn Prediction API",
-    description="API de previsão de Churn usando MLP (PyTorch)",
-    version="1.0.0",
-)
-
 model: ChurnMLP | None = None
 preprocessor = None
 
 
-@app.on_event("startup")
-def load_artifacts():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     """Carrega modelo e preprocessor na inicialização."""
     global model, preprocessor
 
@@ -48,6 +42,16 @@ def load_artifacts():
 
     preprocessor = joblib.load(preprocessor_path)
     logger.info("Preprocessor carregado de '%s'", preprocessor_path)
+
+    yield
+
+
+app = FastAPI(
+    title="Churn Prediction API",
+    description="API de previsão de Churn usando MLP (PyTorch)",
+    version="1.0.0",
+    lifespan=lifespan,
+)
 
 
 @app.middleware("http")
