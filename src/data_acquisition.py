@@ -1,9 +1,12 @@
 """Módulo de aquisição de dados: download do dataset Telco Customer Churn via kagglehub."""
 
-from pathlib import Path
+import logging
 import shutil
+from pathlib import Path
 
 import kagglehub
+
+logger = logging.getLogger(__name__)
 
 DATASET_HANDLE = "blastchar/telco-customer-churn"
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -29,10 +32,10 @@ def download_telco_churn(
     dest_path = destination_dir / filename
 
     if dest_path.exists() and not force:
-        print(f"Dataset já presente em '{dest_path}'. Use force=True para baixar novamente.")
+        logger.info("Dataset já presente em '%s'.", dest_path)
         return dest_path
 
-    print(f"Baixando dataset '{DATASET_HANDLE}' via kagglehub...")
+    logger.info("Baixando dataset '%s' via kagglehub...", DATASET_HANDLE)
     cached_dir = Path(kagglehub.dataset_download(DATASET_HANDLE))
 
     csv_files = list(cached_dir.glob("*.csv"))
@@ -40,10 +43,10 @@ def download_telco_churn(
         raise FileNotFoundError(f"Nenhum CSV encontrado no cache do kagglehub: '{cached_dir}'")
 
     source_csv = csv_files[0]
-    print(f"Arquivo fonte encontrado: '{source_csv.name}'")
+    logger.info("Arquivo fonte encontrado: '%s'", source_csv.name)
 
     destination_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source_csv, dest_path)
-    print(f"Dataset copiado para '{dest_path}'")
+    logger.info("Dataset copiado para '%s'", dest_path)
 
     return dest_path

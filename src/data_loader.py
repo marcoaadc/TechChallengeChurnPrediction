@@ -1,8 +1,13 @@
+"""Módulo de carregamento de dados."""
+
+import logging
 from pathlib import Path
 
 import pandas as pd
 
 from src.data_acquisition import download_telco_churn
+
+logger = logging.getLogger(__name__)
 
 
 def load_data(filepath: str) -> pd.DataFrame:
@@ -21,13 +26,10 @@ def load_data(filepath: str) -> pd.DataFrame:
     try:
         df = pd.read_csv(path)
     except FileNotFoundError:
-        print(
-            f"[ERRO] Arquivo não encontrado: '{path.resolve()}'\n"
-            f"Verifique se o CSV está no caminho correto (ex: data/raw/)."
-        )
+        logger.error("Arquivo não encontrado: '%s'", path.resolve())
         raise
 
-    print(f"Dataset carregado com sucesso: {df.shape[0]} linhas x {df.shape[1]} colunas")
+    logger.info("Dataset carregado: %d linhas x %d colunas", df.shape[0], df.shape[1])
     return df
 
 

@@ -1,9 +1,13 @@
 """Utilitários de treinamento: Dataset, training loop e early stopping."""
 
+import logging
+
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader, Dataset
+
+logger = logging.getLogger(__name__)
 
 
 class ChurnDataset(Dataset):
@@ -110,10 +114,10 @@ def train_model(
         history['val_loss'].append(val_loss)
 
         if (epoch + 1) % 10 == 0:
-            print(f"Epoch {epoch+1}/{epochs} — train_loss: {train_loss:.4f} | val_loss: {val_loss:.4f}")
+            logger.info("Epoch %d/%d — train_loss: %.4f | val_loss: %.4f", epoch + 1, epochs, train_loss, val_loss)
 
         if early_stopping.step(val_loss, model):
-            print(f"Early stopping na época {epoch+1}")
+            logger.info("Early stopping na época %d", epoch + 1)
             early_stopping.restore(model)
             break
 
