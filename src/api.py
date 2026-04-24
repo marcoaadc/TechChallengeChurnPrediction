@@ -12,8 +12,9 @@ from fastapi import FastAPI, Request
 
 from src.model import ChurnMLP
 from src.schemas import CustomerInput, HealthResponse, PredictionOutput
+from src.utils.logger import setup_logging
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
+setup_logging()
 logger = logging.getLogger(__name__)
 
 MODELS_DIR = Path(__file__).resolve().parent.parent / "models"
