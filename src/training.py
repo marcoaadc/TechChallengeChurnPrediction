@@ -36,7 +36,7 @@ class EarlyStopping:
         self.patience = patience
         self.min_delta = min_delta
         self.counter = 0
-        self.best_loss = float('inf')
+        self.best_loss = float("inf")
         self.best_state = None
 
     def step(self, val_loss: float, model: nn.Module) -> bool:
@@ -83,7 +83,7 @@ def train_model(
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     early_stopping = EarlyStopping(patience=patience)
 
-    history = {'train_loss': [], 'val_loss': []}
+    history = {"train_loss": [], "val_loss": []}
 
     for epoch in range(epochs):
         # Treino
@@ -110,8 +110,8 @@ def train_model(
 
         train_loss = np.mean(train_losses)
         val_loss = np.mean(val_losses)
-        history['train_loss'].append(train_loss)
-        history['val_loss'].append(val_loss)
+        history["train_loss"].append(train_loss)
+        history["val_loss"].append(val_loss)
 
         if (epoch + 1) % 10 == 0:
             logger.info("Epoch %d/%d — train_loss: %.4f | val_loss: %.4f", epoch + 1, epochs, train_loss, val_loss)

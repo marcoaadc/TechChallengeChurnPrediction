@@ -13,6 +13,8 @@ Este projeto implementa uma API de classificação binária que recebe os dados 
 - **Modelo:** PyTorch (MLP)
 - **Rastreamento de experimentos:** MLflow
 - **API:** FastAPI + Uvicorn
+- **Testes:** pytest + pandera
+- **Linting:** ruff
 - **Gerenciamento de dependências:** Poetry
 
 ## Instalação
@@ -22,10 +24,71 @@ Este projeto implementa uma API de classificação binária que recebe os dados 
 pip install poetry
 
 # Instalar as dependências do projeto
-poetry install
+make install
+# ou: poetry install
 
 # Ativar o ambiente virtual
 poetry shell
+```
+
+## Comandos de Desenvolvimento
+
+```bash
+make install   # Instala dependências
+make lint      # Verifica linting (ruff)
+make format    # Formata código automaticamente
+make test      # Roda testes (pytest)
+make run       # Inicia a API (uvicorn)
+```
+
+## API
+
+### Iniciar o servidor
+
+```bash
+make run
+# A API estará disponível em http://localhost:8000
+# Documentação interativa (Swagger): http://localhost:8000/docs
+```
+
+### Endpoints
+
+#### `GET /health`
+
+Verifica se a API e o modelo estão operacionais.
+
+```bash
+curl http://localhost:8000/health
+```
+
+#### `POST /predict`
+
+Recebe dados de um cliente e retorna a probabilidade de churn.
+
+```bash
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "gender": "Female",
+    "SeniorCitizen": 0,
+    "Partner": "Yes",
+    "Dependents": "No",
+    "tenure": 12,
+    "PhoneService": "Yes",
+    "MultipleLines": "No",
+    "InternetService": "Fiber optic",
+    "OnlineSecurity": "No",
+    "OnlineBackup": "Yes",
+    "DeviceProtection": "No",
+    "TechSupport": "No",
+    "StreamingTV": "No",
+    "StreamingMovies": "No",
+    "Contract": "Month-to-month",
+    "PaperlessBilling": "Yes",
+    "PaymentMethod": "Electronic check",
+    "MonthlyCharges": 70.35,
+    "TotalCharges": 840.50
+  }'
 ```
 
 ## Dados
@@ -58,11 +121,21 @@ Alternativamente, defina as variáveis de ambiente `KAGGLE_USERNAME` e `KAGGLE_K
 ├── data/
 │   ├── raw/            # Dados brutos
 │   └── processed/      # Dados processados
-├── docs/               # Documentação
-├── models/             # Modelos treinados
-├── notebooks/          # Notebooks de análise e experimentação
-├── src/                # Código-fonte
+├── docs/
+│   └── ml_canvas.md    # ML Canvas (stakeholders, métricas, SLOs)
+├── models/             # Modelos treinados (.pt, .joblib)
+├── notebooks/
+│   ├── 01_eda_baseline.ipynb  # EDA + baselines
+│   └── 02_modeling.ipynb      # MLP PyTorch + comparação
+├── src/
+│   ├── api.py          # API FastAPI
+│   ├── data_acquisition.py  # Download do dataset
+│   ├── data_loader.py  # Carregamento de dados
+│   ├── model.py        # Arquitetura MLP
+│   ├── schemas.py      # Schemas Pydantic
+│   └── training.py     # Loop de treinamento
 ├── tests/              # Testes automatizados
-├── pyproject.toml      # Dependências (Poetry)
+├── Makefile            # Comandos de desenvolvimento
+├── pyproject.toml      # Dependências e configuração
 └── README.md
 ```

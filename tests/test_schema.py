@@ -1,9 +1,7 @@
 """Testes de validação de schema do dataset com pandera."""
 
-import numpy as np
 import pandas as pd
 import pandera.pandas as pa
-import pytest
 
 telco_schema = pa.DataFrameSchema(
     {

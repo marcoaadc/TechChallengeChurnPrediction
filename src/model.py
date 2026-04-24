@@ -22,12 +22,14 @@ class ChurnMLP(nn.Module):
         prev_dim = input_dim
 
         for h_dim in hidden_dims:
-            layers.extend([
-                nn.Linear(prev_dim, h_dim),
-                nn.BatchNorm1d(h_dim),
-                nn.ReLU(),
-                nn.Dropout(dropout),
-            ])
+            layers.extend(
+                [
+                    nn.Linear(prev_dim, h_dim),
+                    nn.BatchNorm1d(h_dim),
+                    nn.ReLU(),
+                    nn.Dropout(dropout),
+                ]
+            )
             prev_dim = h_dim
 
         layers.append(nn.Linear(prev_dim, 1))
