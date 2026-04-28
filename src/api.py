@@ -26,7 +26,7 @@ async def lifespan(app: FastAPI):
     model_path = MODELS_DIR / "mlp_churn.pt"
     preprocessor_path = MODELS_DIR / "preprocessor.joblib"
 
-    checkpoint = torch.load(model_path, map_location="cpu", weights_only=False)
+    checkpoint = torch.load(model_path, map_location="cpu", weights_only=True)
     mlp = ChurnMLP(
         input_dim=checkpoint["input_dim"],
         hidden_dims=checkpoint["hidden_dims"],
