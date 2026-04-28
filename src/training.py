@@ -13,14 +13,14 @@ logger = logging.getLogger(__name__)
 class ChurnDataset(Dataset):
     """Dataset PyTorch para dados tabulares de Churn."""
 
-    def __init__(self, X: np.ndarray, y: np.ndarray):
+    def __init__(self, X: np.ndarray, y: np.ndarray) -> None:
         self.X = torch.tensor(X, dtype=torch.float32)
         self.y = torch.tensor(y, dtype=torch.float32)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.y)
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
         return self.X[idx], self.y[idx]
 
 
@@ -32,12 +32,12 @@ class EarlyStopping:
         min_delta: Melhoria mínima para considerar progresso.
     """
 
-    def __init__(self, patience: int = 10, min_delta: float = 1e-4):
+    def __init__(self, patience: int = 10, min_delta: float = 1e-4) -> None:
         self.patience = patience
         self.min_delta = min_delta
-        self.counter = 0
-        self.best_loss = float("inf")
-        self.best_state = None
+        self.counter: int = 0
+        self.best_loss: float = float("inf")
+        self.best_state: dict[str, torch.Tensor] | None = None
 
     def step(self, val_loss: float, model: nn.Module) -> bool:
         if val_loss < self.best_loss - self.min_delta:
@@ -48,7 +48,7 @@ class EarlyStopping:
         self.counter += 1
         return self.counter >= self.patience
 
-    def restore(self, model: nn.Module):
+    def restore(self, model: nn.Module) -> None:
         if self.best_state is not None:
             model.load_state_dict(self.best_state)
 
@@ -64,7 +64,7 @@ def train_model(
     patience: int = 10,
     min_delta: float = 1e-4,
     device: str = "cpu",
-):
+) -> dict[str, list[float]]:
     """Treina o modelo MLP com early stopping.
 
     Args:

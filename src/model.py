@@ -13,7 +13,7 @@ class ChurnMLP(nn.Module):
         dropout: Taxa de dropout entre camadas.
     """
 
-    def __init__(self, input_dim: int, hidden_dims: list[int] = None, dropout: float = 0.3):
+    def __init__(self, input_dim: int, hidden_dims: list[int] | None = None, dropout: float = 0.3) -> None:
         super().__init__()
         if hidden_dims is None:
             hidden_dims = [64, 32]

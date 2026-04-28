@@ -2,13 +2,16 @@
 
 import logging
 import time
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Callable
 
 import joblib
 import pandas as pd
 import torch
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import Response
 
 from src.model import ChurnMLP
 from src.schemas import CustomerInput, HealthResponse, PredictionOutput
@@ -21,7 +24,7 @@ MODELS_DIR = Path(__file__).resolve().parent.parent / "models"
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Carrega modelo e preprocessor na inicialização via app.state."""
     model_path = MODELS_DIR / "mlp_churn.pt"
     preprocessor_path = MODELS_DIR / "preprocessor.joblib"
@@ -63,7 +66,7 @@ app = FastAPI(
 
 
 @app.middleware("http")
-async def log_latency(request: Request, call_next):
+async def log_latency(request: Request, call_next: Callable) -> Response:
     """Middleware que loga a latência de cada request."""
     start = time.perf_counter()
     response = await call_next(request)
@@ -73,7 +76,7 @@ async def log_latency(request: Request, call_next):
 
 
 @app.get("/health", response_model=HealthResponse)
-def health(request: Request):
+def health(request: Request) -> HealthResponse:
     """Verifica se a API e o modelo estão operacionais."""
     model_loaded = hasattr(request.app.state, "model") and request.app.state.model is not None
     return HealthResponse(
@@ -83,7 +86,7 @@ def health(request: Request):
 
 
 @app.post("/predict", response_model=PredictionOutput)
-def predict(customer: CustomerInput, request: Request):
+def predict(customer: CustomerInput, request: Request) -> PredictionOutput:
     """Recebe dados de um cliente e retorna a probabilidade de churn."""
     model = getattr(request.app.state, "model", None)
     preprocessor = getattr(request.app.state, "preprocessor", None)
