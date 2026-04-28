@@ -59,8 +59,10 @@ def train_model(
     val_loader: DataLoader,
     epochs: int = 100,
     lr: float = 1e-3,
+    weight_decay: float = 0.0,
     pos_weight: float = 1.0,
     patience: int = 10,
+    min_delta: float = 1e-4,
     device: str = "cpu",
 ):
     """Treina o modelo MLP com early stopping.
@@ -71,8 +73,10 @@ def train_model(
         val_loader: DataLoader de validação.
         epochs: Número máximo de épocas.
         lr: Learning rate.
+        weight_decay: Fator de regularização L2 do Adam.
         pos_weight: Peso da classe positiva na BCEWithLogitsLoss.
         patience: Épocas para early stopping.
+        min_delta: Melhoria mínima de validação para considerar progresso.
         device: Dispositivo (cpu/cuda).
 
     Returns:
@@ -80,8 +84,8 @@ def train_model(
     """
     model = model.to(device)
     criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([pos_weight], device=device))
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    early_stopping = EarlyStopping(patience=patience)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+    early_stopping = EarlyStopping(patience=patience, min_delta=min_delta)
 
     history = {"train_loss": [], "val_loss": []}
 
