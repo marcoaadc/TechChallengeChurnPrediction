@@ -8,7 +8,7 @@ from pathlib import Path
 import joblib
 import pandas as pd
 import torch
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 
 from src.model import ChurnMLP
 from src.schemas import CustomerInput, HealthResponse, PredictionOutput
@@ -26,19 +26,30 @@ async def lifespan(app: FastAPI):
     model_path = MODELS_DIR / "mlp_churn.pt"
     preprocessor_path = MODELS_DIR / "preprocessor.joblib"
 
-    checkpoint = torch.load(model_path, map_location="cpu", weights_only=True)
-    mlp = ChurnMLP(
-        input_dim=checkpoint["input_dim"],
-        hidden_dims=checkpoint["hidden_dims"],
-        dropout=checkpoint["dropout"],
-    )
-    mlp.load_state_dict(checkpoint["model_state_dict"])
-    mlp.eval()
-    app.state.model = mlp
-    logger.info("Modelo carregado de '%s'", model_path)
+    app.state.model = None
+    app.state.preprocessor = None
 
-    app.state.preprocessor = joblib.load(preprocessor_path)
-    logger.info("Preprocessor carregado de '%s'", preprocessor_path)
+    try:
+        if not model_path.exists():
+            logger.error("Arquivo do modelo não encontrado: '%s'", model_path)
+        elif not preprocessor_path.exists():
+            logger.error("Arquivo do preprocessor não encontrado: '%s'", preprocessor_path)
+        else:
+            checkpoint = torch.load(model_path, map_location="cpu", weights_only=True)
+            mlp = ChurnMLP(
+                input_dim=checkpoint["input_dim"],
+                hidden_dims=checkpoint["hidden_dims"],
+                dropout=checkpoint["dropout"],
+            )
+            mlp.load_state_dict(checkpoint["model_state_dict"])
+            mlp.eval()
+            app.state.model = mlp
+            logger.info("Modelo carregado de '%s'", model_path)
+
+            app.state.preprocessor = joblib.load(preprocessor_path)
+            logger.info("Preprocessor carregado de '%s'", preprocessor_path)
+    except Exception:
+        logger.exception("Falha ao carregar modelo ou preprocessor")
 
     yield
 
@@ -74,14 +85,28 @@ def health(request: Request):
 @app.post("/predict", response_model=PredictionOutput)
 def predict(customer: CustomerInput, request: Request):
     """Recebe dados de um cliente e retorna a probabilidade de churn."""
-    input_df = pd.DataFrame([customer.model_dump()])
+    model = getattr(request.app.state, "model", None)
+    preprocessor = getattr(request.app.state, "preprocessor", None)
 
-    X_processed = request.app.state.preprocessor.transform(input_df)
-    X_tensor = torch.tensor(X_processed, dtype=torch.float32)
+    if model is None or preprocessor is None:
+        logger.error("Tentativa de predição sem modelo/preprocessor carregado")
+        raise HTTPException(status_code=503, detail="Modelo não está disponível. Tente novamente mais tarde.")
 
-    with torch.no_grad():
-        logits = request.app.state.model(X_tensor)
-        probability = torch.sigmoid(logits).item()
+    try:
+        input_df = pd.DataFrame([customer.model_dump()])
+        X_processed = preprocessor.transform(input_df)
+        X_tensor = torch.tensor(X_processed, dtype=torch.float32)
+    except Exception as exc:
+        logger.exception("Erro ao pré-processar entrada")
+        raise HTTPException(status_code=422, detail=f"Erro no pré-processamento dos dados: {exc}") from exc
+
+    try:
+        with torch.no_grad():
+            logits = model(X_tensor)
+            probability = torch.sigmoid(logits).item()
+    except Exception as exc:
+        logger.exception("Erro durante a inferência do modelo")
+        raise HTTPException(status_code=500, detail="Erro interno durante a inferência.") from exc
 
     return PredictionOutput(
         churn_probability=round(probability, 4),
