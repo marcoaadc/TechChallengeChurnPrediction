@@ -39,8 +39,15 @@ Thumbs.db
 mlruns/
 mlartifacts/
 
-# Trained models (large files)
+# Trained models / serialized artifacts (large files)
 *.pt
 *.pth
 *.onnx
+*.joblib
+*.pkl
+*.pickle
+
+# Test / lint caches
+.pytest_cache/
+.ruff_cache/
 
