@@ -17,7 +17,7 @@ def client():
     mock_model.return_value.item.return_value = 0.0
 
     mock_preprocessor = MagicMock()
-    mock_preprocessor.transform.return_value = np.zeros((1, 30))
+    mock_preprocessor.transform.return_value = np.zeros((1, 44))
 
     app.state.model = mock_model
     app.state.preprocessor = mock_preprocessor

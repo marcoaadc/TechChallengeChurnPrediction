@@ -5,6 +5,7 @@ import logging
 import numpy as np
 import torch
 import torch.nn as nn
+from sklearn.metrics import confusion_matrix
 from torch.utils.data import DataLoader, Dataset
 
 logger = logging.getLogger(__name__)
@@ -63,9 +64,11 @@ def train_model(
     pos_weight: float = 1.0,
     patience: int = 10,
     min_delta: float = 1e-4,
+    scheduler_patience: int = 5,
+    scheduler_factor: float = 0.5,
     device: str = "cpu",
 ) -> dict[str, list[float]]:
-    """Treina o modelo MLP com early stopping.
+    """Treina o modelo MLP com early stopping e LR scheduler.
 
     Args:
         model: Modelo PyTorch.
@@ -77,6 +80,8 @@ def train_model(
         pos_weight: Peso da classe positiva na BCEWithLogitsLoss.
         patience: Épocas para early stopping.
         min_delta: Melhoria mínima de validação para considerar progresso.
+        scheduler_patience: Épocas sem melhoria para reduzir LR.
+        scheduler_factor: Fator de redução do LR (new_lr = lr * factor).
         device: Dispositivo (cpu/cuda).
 
     Returns:
@@ -85,12 +90,14 @@ def train_model(
     model = model.to(device)
     criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([pos_weight], device=device))
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, mode="min", factor=scheduler_factor, patience=scheduler_patience
+    )
     early_stopping = EarlyStopping(patience=patience, min_delta=min_delta)
 
-    history = {"train_loss": [], "val_loss": []}
+    history: dict[str, list[float]] = {"train_loss": [], "val_loss": []}
 
     for epoch in range(epochs):
-        # Treino
         model.train()
         train_losses = []
         for X_batch, y_batch in train_loader:
@@ -102,7 +109,6 @@ def train_model(
             optimizer.step()
             train_losses.append(loss.item())
 
-        # Validação
         model.eval()
         val_losses = []
         with torch.no_grad():
@@ -112,13 +118,23 @@ def train_model(
                 loss = criterion(logits, y_batch)
                 val_losses.append(loss.item())
 
-        train_loss = np.mean(train_losses)
-        val_loss = np.mean(val_losses)
+        train_loss = float(np.mean(train_losses))
+        val_loss = float(np.mean(val_losses))
         history["train_loss"].append(train_loss)
         history["val_loss"].append(val_loss)
 
+        scheduler.step(val_loss)
+
         if (epoch + 1) % 10 == 0:
-            logger.info("Epoch %d/%d — train_loss: %.4f | val_loss: %.4f", epoch + 1, epochs, train_loss, val_loss)
+            current_lr = optimizer.param_groups[0]["lr"]
+            logger.info(
+                "Epoch %d/%d — train_loss: %.4f | val_loss: %.4f | lr: %.6f",
+                epoch + 1,
+                epochs,
+                train_loss,
+                val_loss,
+                current_lr,
+            )
 
         if early_stopping.step(val_loss, model):
             logger.info("Early stopping na época %d", epoch + 1)
@@ -136,3 +152,35 @@ def predict_proba(model: nn.Module, X: np.ndarray, device: str = "cpu") -> np.nd
         logits = model(X_tensor)
         proba = torch.sigmoid(logits).cpu().numpy()
     return proba
+
+
+def find_optimal_threshold(
+    y_true: np.ndarray,
+    y_proba: np.ndarray,
+    cost_fn: float = 500.0,
+    cost_fp: float = 50.0,
+) -> tuple[float, float]:
+    """Encontra o threshold que minimiza o custo total de negócio.
+
+    Args:
+        y_true: Labels verdadeiros (0 ou 1).
+        y_proba: Probabilidades previstas.
+        cost_fn: Custo de um falso negativo (cliente churna sem ser detectado).
+        cost_fp: Custo de um falso positivo (oferta de retenção desnecessária).
+
+    Returns:
+        Tupla (threshold_ótimo, custo_mínimo).
+    """
+    thresholds = np.arange(0.05, 0.96, 0.01)
+    best_threshold = 0.5
+    best_cost = float("inf")
+
+    for t in thresholds:
+        y_pred = (y_proba >= t).astype(int)
+        tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
+        total_cost = fn * cost_fn + fp * cost_fp
+        if total_cost < best_cost:
+            best_cost = total_cost
+            best_threshold = float(t)
+
+    return best_threshold, best_cost

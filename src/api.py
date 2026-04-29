@@ -31,6 +31,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     app.state.model = None
     app.state.preprocessor = None
+    app.state.optimal_threshold = 0.5
 
     try:
         if not model_path.exists():
@@ -47,7 +48,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             mlp.load_state_dict(checkpoint["model_state_dict"])
             mlp.eval()
             app.state.model = mlp
-            logger.info("Modelo carregado de '%s'", model_path)
+            app.state.optimal_threshold = checkpoint.get("optimal_threshold", 0.5)
+            logger.info("Modelo carregado de '%s' (threshold=%.2f)", model_path, app.state.optimal_threshold)
 
             app.state.preprocessor = joblib.load(preprocessor_path)
             logger.info("Preprocessor carregado de '%s'", preprocessor_path)
@@ -97,6 +99,18 @@ def predict(customer: CustomerInput, request: Request) -> PredictionOutput:
 
     try:
         input_df = pd.DataFrame([customer.model_dump()])
+        service_cols = [
+            "PhoneService", "MultipleLines", "OnlineSecurity", "OnlineBackup",
+            "DeviceProtection", "TechSupport", "StreamingTV", "StreamingMovies",
+        ]
+        input_df["total_services_count"] = input_df[service_cols].apply(
+            lambda row: sum(1 for v in row if v == "Yes"), axis=1
+        )
+        input_df["tenure_to_charges_ratio"] = input_df["tenure"] / (input_df["MonthlyCharges"] + 1e-6)
+        no_security = input_df["OnlineSecurity"] == "No"
+        no_tech = input_df["TechSupport"] == "No"
+        input_df["has_no_support"] = (no_security & no_tech).astype(int)
+        input_df["is_new_customer"] = (input_df["tenure"] < 6).astype(int)
         X_processed = preprocessor.transform(input_df)
         X_tensor = torch.tensor(X_processed, dtype=torch.float32)
     except Exception as exc:
@@ -111,7 +125,9 @@ def predict(customer: CustomerInput, request: Request) -> PredictionOutput:
         logger.exception("Erro durante a inferência do modelo")
         raise HTTPException(status_code=500, detail="Erro interno durante a inferência.") from exc
 
+    threshold = getattr(request.app.state, "optimal_threshold", 0.5)
+
     return PredictionOutput(
         churn_probability=round(probability, 4),
-        churn_prediction=probability >= 0.5,
+        churn_prediction=probability >= threshold,
     )

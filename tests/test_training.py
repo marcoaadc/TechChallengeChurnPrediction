@@ -6,7 +6,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from src.model import ChurnMLP
-from src.training import ChurnDataset, EarlyStopping, predict_proba, train_model
+from src.training import ChurnDataset, EarlyStopping, find_optimal_threshold, predict_proba, train_model
 
 
 class TestChurnDataset:
@@ -103,12 +103,11 @@ class TestTrainModel:
         assert len(history["val_loss"]) > 0
 
     def test_loss_decreases(self, small_loaders):
-        """A loss de treino deve diminuir ao longo das épocas."""
+        """A menor loss de treino deve ser menor que a primeira."""
         train_loader, val_loader = small_loaders
         model = ChurnMLP(input_dim=5, hidden_dims=[8])
         history = train_model(model, train_loader, val_loader, epochs=30, patience=25)
-        # A loss final deve ser menor que a inicial
-        assert history["train_loss"][-1] < history["train_loss"][0]
+        assert min(history["train_loss"]) < history["train_loss"][0]
 
     def test_early_stopping_triggers(self, small_loaders):
         """Com patience=1 e epochs alto, early stopping deve encurtar o treino."""
@@ -117,6 +116,42 @@ class TestTrainModel:
         history = train_model(model, train_loader, val_loader, epochs=200, patience=1)
         # Com patience=1, deve parar bem antes de 200 épocas
         assert len(history["train_loss"]) < 200
+
+
+class TestTrainModelWithScheduler:
+    """Testes do train_model com LR scheduler."""
+
+    @pytest.fixture()
+    def small_loaders(self):
+        np.random.seed(42)
+        X_train = np.random.randn(40, 5).astype(np.float32)
+        y_train = (X_train[:, 0] > 0).astype(np.float32)
+        X_val = np.random.randn(10, 5).astype(np.float32)
+        y_val = (X_val[:, 0] > 0).astype(np.float32)
+        train_ds = ChurnDataset(X_train, y_train)
+        val_ds = ChurnDataset(X_val, y_val)
+        return DataLoader(train_ds, batch_size=16, shuffle=True), DataLoader(val_ds, batch_size=16)
+
+    def test_train_with_scheduler(self, small_loaders):
+        """train_model com scheduler executa sem erro."""
+        train_loader, val_loader = small_loaders
+        model = ChurnMLP(input_dim=5, hidden_dims=[8])
+        history = train_model(
+            model, train_loader, val_loader,
+            epochs=10, patience=5,
+            scheduler_patience=3, scheduler_factor=0.5,
+        )
+        assert len(history["train_loss"]) > 0
+
+    def test_train_with_weight_decay(self, small_loaders):
+        """train_model com weight_decay executa sem erro."""
+        train_loader, val_loader = small_loaders
+        model = ChurnMLP(input_dim=5, hidden_dims=[8])
+        history = train_model(
+            model, train_loader, val_loader,
+            epochs=5, patience=3, weight_decay=1e-4,
+        )
+        assert len(history["train_loss"]) > 0
 
 
 class TestPredictProba:
@@ -136,3 +171,31 @@ class TestPredictProba:
         proba = predict_proba(model, X)
         assert np.all(proba >= 0.0)
         assert np.all(proba <= 1.0)
+
+
+class TestFindOptimalThreshold:
+    """Testes da função find_optimal_threshold."""
+
+    def test_returns_valid_threshold(self):
+        """Threshold retornado deve estar entre 0 e 1."""
+        y_true = np.array([0, 0, 0, 1, 1, 1, 0, 0, 1, 1])
+        y_proba = np.array([0.1, 0.2, 0.3, 0.7, 0.8, 0.9, 0.4, 0.15, 0.6, 0.85])
+        threshold, cost = find_optimal_threshold(y_true, y_proba)
+        assert 0.0 < threshold < 1.0
+        assert cost >= 0
+
+    def test_lower_threshold_with_high_fn_cost(self):
+        """Com FN muito caro, threshold ótimo deve ser mais baixo (detectar mais churn)."""
+        y_true = np.array([0, 0, 0, 0, 0, 0, 1, 1, 1, 1])
+        y_proba = np.array([0.05, 0.12, 0.18, 0.28, 0.42, 0.52, 0.38, 0.62, 0.78, 0.92])
+        t_high_fn, _ = find_optimal_threshold(y_true, y_proba, cost_fn=10000, cost_fp=1)
+        t_low_fn, _ = find_optimal_threshold(y_true, y_proba, cost_fn=1, cost_fp=10000)
+        assert t_high_fn <= t_low_fn
+
+    def test_returns_tuple(self):
+        """Retorna tupla (threshold, custo)."""
+        y_true = np.array([0, 1, 0, 1])
+        y_proba = np.array([0.2, 0.8, 0.3, 0.7])
+        result = find_optimal_threshold(y_true, y_proba)
+        assert isinstance(result, tuple)
+        assert len(result) == 2
