@@ -91,6 +91,60 @@ curl -X POST http://localhost:8000/predict \
   }'
 ```
 
+## Arquitetura
+
+```
+Cliente (curl/UI)
+    │
+    ▼  POST /predict (JSON)
+┌─────────────────────────────┐
+│        FastAPI (Uvicorn)     │
+│  ┌────────────────────────┐ │
+│  │ Pydantic (validação)   │ │
+│  └──────────┬─────────────┘ │
+│  ┌──────────▼─────────────┐ │
+│  │ Feature Engineering    │ │
+│  │ (4 features derivadas) │ │
+│  └──────────┬─────────────┘ │
+│  ┌──────────▼─────────────┐ │
+│  │ Preprocessor (.joblib) │ │
+│  │ StandardScaler + OHE   │ │
+│  └──────────┬─────────────┘ │
+│  ┌──────────▼─────────────┐ │
+│  │ ChurnMLP (.pt)         │ │
+│  │ [64,32] + threshold    │ │
+│  └──────────┬─────────────┘ │
+│             ▼               │
+│   {probability, prediction} │
+└─────────────────────────────┘
+```
+
+- **Inferência real-time** via API REST (latência p95 < 200ms)
+- **Containerização** com Docker multi-stage build (python:3.11-slim)
+- **Threshold calibrado** por custo de negócio (FN=R$500, FP=R$50)
+
+## Documentação
+
+| Documento | Descrição |
+|-----------|-----------|
+| [ML Canvas](docs/ml_canvas.md) | Problema de negócio, stakeholders, métricas, SLOs |
+| [Model Card](docs/model_card.md) | Performance, limitações, vieses, cenários de falha |
+| [Arquitetura de Deploy](docs/deploy_architecture.md) | Real-time vs batch, diagrama, containerização |
+| [Plano de Monitoramento](docs/monitoring_plan.md) | Métricas, alertas, drift detection, playbook |
+
+## Docker
+
+```bash
+# Build da imagem
+make docker
+# ou: docker build -t churn-api .
+
+# Executar o container
+docker run -p 8000:8000 churn-api
+
+# A API estará disponível em http://localhost:8000
+```
+
 ## Dados
 
 O dataset utilizado é o [Telco Customer Churn](https://www.kaggle.com/datasets/blastchar/telco-customer-churn), que contém informações de clientes de uma empresa de telecomunicações.
@@ -122,7 +176,10 @@ Alternativamente, defina as variáveis de ambiente `KAGGLE_USERNAME` e `KAGGLE_K
 │   ├── raw/            # Dados brutos
 │   └── processed/      # Dados processados
 ├── docs/
-│   └── ml_canvas.md    # ML Canvas (stakeholders, métricas, SLOs)
+│   ├── ml_canvas.md          # ML Canvas (stakeholders, métricas, SLOs)
+│   ├── model_card.md         # Model Card (performance, limitações, vieses)
+│   ├── deploy_architecture.md # Arquitetura de deploy (real-time vs batch)
+│   └── monitoring_plan.md    # Plano de monitoramento (alertas, drift, playbook)
 ├── models/             # Modelos treinados (.pt, .joblib)
 ├── notebooks/
 │   ├── 01_eda_baseline.ipynb  # EDA + baselines

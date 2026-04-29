@@ -1,6 +1,5 @@
 """Testes unitários para o módulo src.model (ChurnMLP)."""
 
-import pytest
 import torch
 
 from src.model import ChurnMLP
