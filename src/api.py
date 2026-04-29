@@ -13,6 +13,7 @@ import torch
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import Response
 
+from src.feature_engineering import ChurnFeatureEngineer
 from src.model import ChurnMLP
 from src.schemas import CustomerInput, HealthResponse, PredictionOutput
 from src.utils.logger import setup_logging
@@ -99,18 +100,8 @@ def predict(customer: CustomerInput, request: Request) -> PredictionOutput:
 
     try:
         input_df = pd.DataFrame([customer.model_dump()])
-        service_cols = [
-            "PhoneService", "MultipleLines", "OnlineSecurity", "OnlineBackup",
-            "DeviceProtection", "TechSupport", "StreamingTV", "StreamingMovies",
-        ]
-        input_df["total_services_count"] = input_df[service_cols].apply(
-            lambda row: sum(1 for v in row if v == "Yes"), axis=1
-        )
-        input_df["tenure_to_charges_ratio"] = input_df["tenure"] / (input_df["MonthlyCharges"] + 1e-6)
-        no_security = input_df["OnlineSecurity"] == "No"
-        no_tech = input_df["TechSupport"] == "No"
-        input_df["has_no_support"] = (no_security & no_tech).astype(int)
-        input_df["is_new_customer"] = (input_df["tenure"] < 6).astype(int)
+        feature_engineer = ChurnFeatureEngineer()
+        input_df = feature_engineer.transform(input_df)
         X_processed = preprocessor.transform(input_df)
         X_tensor = torch.tensor(X_processed, dtype=torch.float32)
     except Exception as exc:
