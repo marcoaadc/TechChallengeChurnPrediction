@@ -11,6 +11,14 @@ from torch.utils.data import DataLoader, Dataset
 logger = logging.getLogger(__name__)
 
 
+def set_seed(seed: int = 42) -> None:
+    """Fixa seeds para reprodutibilidade (numpy + torch)."""
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
+
 class ChurnDataset(Dataset):
     """Dataset PyTorch para dados tabulares de Churn."""
 
