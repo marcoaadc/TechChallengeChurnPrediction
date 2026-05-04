@@ -31,9 +31,7 @@ class ChurnFeatureEngineer(BaseEstimator, TransformerMixin):
 
     def transform(self, X: pd.DataFrame) -> pd.DataFrame:
         X = X.copy()
-        X["total_services_count"] = X[self.SERVICE_COLS].apply(
-            lambda row: sum(1 for v in row if v == "Yes"), axis=1
-        )
+        X["total_services_count"] = X[self.SERVICE_COLS].apply(lambda row: sum(1 for v in row if v == "Yes"), axis=1)
         X["tenure_to_charges_ratio"] = X["tenure"] / (X["MonthlyCharges"] + 1e-6)
         X["has_no_support"] = ((X["OnlineSecurity"] == "No") & (X["TechSupport"] == "No")).astype(int)
         X["is_new_customer"] = (X["tenure"] < 6).astype(int)

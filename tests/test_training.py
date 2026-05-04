@@ -137,9 +137,13 @@ class TestTrainModelWithScheduler:
         train_loader, val_loader = small_loaders
         model = ChurnMLP(input_dim=5, hidden_dims=[8])
         history = train_model(
-            model, train_loader, val_loader,
-            epochs=10, patience=5,
-            scheduler_patience=3, scheduler_factor=0.5,
+            model,
+            train_loader,
+            val_loader,
+            epochs=10,
+            patience=5,
+            scheduler_patience=3,
+            scheduler_factor=0.5,
         )
         assert len(history["train_loss"]) > 0
 
@@ -148,8 +152,12 @@ class TestTrainModelWithScheduler:
         train_loader, val_loader = small_loaders
         model = ChurnMLP(input_dim=5, hidden_dims=[8])
         history = train_model(
-            model, train_loader, val_loader,
-            epochs=5, patience=3, weight_decay=1e-4,
+            model,
+            train_loader,
+            val_loader,
+            epochs=5,
+            patience=3,
+            weight_decay=1e-4,
         )
         assert len(history["train_loss"]) > 0
 

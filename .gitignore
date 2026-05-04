@@ -40,12 +40,13 @@ mlruns/
 mlartifacts/
 
 # Trained models / serialized artifacts (large files)
-*.pt
+# Exceto models/ que contém os artefatos necessários para a API
 *.pth
 *.onnx
-*.joblib
 *.pkl
 *.pickle
+!/models/*.pt
+!/models/*.joblib
 
 # Test / lint caches
 .pytest_cache/

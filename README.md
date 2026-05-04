@@ -185,12 +185,15 @@ Alternativamente, defina as variáveis de ambiente `KAGGLE_USERNAME` e `KAGGLE_K
 │   ├── 01_eda_baseline.ipynb  # EDA + baselines
 │   └── 02_modeling.ipynb      # MLP PyTorch + comparação
 ├── src/
-│   ├── api.py          # API FastAPI
+│   ├── api.py               # API FastAPI
 │   ├── data_acquisition.py  # Download do dataset
-│   ├── data_loader.py  # Carregamento de dados
-│   ├── model.py        # Arquitetura MLP
-│   ├── schemas.py      # Schemas Pydantic
-│   └── training.py     # Loop de treinamento
+│   ├── data_loader.py       # Carregamento de dados
+│   ├── feature_engineering.py # Feature engineering (TransformerMixin)
+│   ├── model.py             # Arquitetura MLP
+│   ├── schemas.py           # Schemas Pydantic
+│   ├── training.py          # Loop de treinamento
+│   └── utils/
+│       └── logger.py        # Logging estruturado JSON
 ├── tests/              # Testes automatizados
 ├── Makefile            # Comandos de desenvolvimento
 ├── pyproject.toml      # Dependências e configuração
